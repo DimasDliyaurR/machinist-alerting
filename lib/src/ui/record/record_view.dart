@@ -44,6 +44,7 @@ class _RecordFormUIState extends State<_RecordFormUI> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RecordProvider>();
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -51,100 +52,174 @@ class _RecordFormUIState extends State<_RecordFormUI> {
         Navigator.pop(context, true);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text("Record")),
-        body: Column(
-          children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _name,
-                    decoration: const InputDecoration(labelText: 'Nama'),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Nama wajib diisi' : null,
+        appBar: AppBar(
+          title: const Text(
+            "Tambah Lokasi",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          elevation: 0,
+        ),
+        // 🟢 1. KUNCI UTAMA: Agar tidak nabrak keyboard saat mengetik
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(
+            24.0,
+          ), // Padding merata di seluruh layar
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch, // Ratakan tombol memanjang
+              children: [
+                // --- BAGIAN INPUT NAMA ---
+                TextFormField(
+                  controller: _name,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Stasiun / Lokasi',
+                    prefixIcon: const Icon(
+                      Icons.train,
+                    ), // Tambahkan Ikon agar cantik
+                    border: OutlineInputBorder(
+                      // Kotak input modern
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  TextFormField(
-                    controller: _latitude,
-                    decoration: const InputDecoration(labelText: 'Latitude'),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Latitude wajib diisi' : null,
-                  ),
-                  TextFormField(
-                    controller: _longitude,
-                    decoration: const InputDecoration(labelText: '_longitude'),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Longitude wajib diisi' : null,
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.gps_fixed),
-                    label: const Text("Ambil Titik Koordinat"),
-                    onPressed: () async {
-                      final locationData = await context
-                          .read<RecordProvider>()
-                          .getCurrentLocation();
-
-                      if (locationData != null) {
-                        _latitude.text = locationData.latitude.toString();
-                        _longitude.text = locationData.longitude.toString();
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Lokasi berhasil didapatkan!"),
-                            ),
-                          );
-                        }
-                      } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Gagal mendapatkan lokasi atau izin ditolak.",
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                  provider.recordModel.isLoading
-                      ? const CircularProgressIndicator()
-                      : ElevatedButton(
-                          onPressed: () async {
-                            if (provider.recordModel.isLoading) {
-                              return;
-                            }
-                            if (_formKey.currentState!.validate()) {
-                              final success = await context
-                                  .read<RecordProvider>()
-                                  .submitForm(
-                                    _name.text,
-                                    _latitude.text,
-                                    _longitude.text,
-                                  );
-
-                              if (success == 1 && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Login Sukses!"),
-                                  ),
-                                );
-                                Navigator.pop(context);
-                                _name.clear();
-                                _latitude.clear();
-                                _longitude.clear();
-
-                                _formKey.currentState!.reset();
-                              }
-                            }
-                          },
-                          child: const Text('Submit'),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Nama wajib diisi' : null,
+                ),
+                const SizedBox(height: 16), // 🟢 2. Jarak vertikal antar input
+                // --- BAGIAN INPUT KOORDINAT ---
+                Row(
+                  // Sejajarkan Latitude dan Longitude secara horizontal agar hemat tempat
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _latitude,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          signed: true,
+                          decimal: true,
+                        ), // Keyboard khusus angka
+                        decoration: InputDecoration(
+                          labelText: 'Latitude',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                ],
-              ),
+                        validator: (value) => value!.isEmpty ? 'Wajib' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _longitude,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          signed: true,
+                          decimal: true,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Longitude',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (value) => value!.isEmpty ? 'Wajib' : null,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // --- BAGIAN TOMBOL AKSI ---
+
+                // Tombol GPS
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.gps_fixed),
+                  label: const Text("Gunakan Lokasi Saat Ini (GPS)"),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final locationData = await context
+                        .read<RecordProvider>()
+                        .getCurrentLocation();
+
+                    if (locationData != null) {
+                      _latitude.text = locationData.latitude.toString();
+                      _longitude.text = locationData.longitude.toString();
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Lokasi berhasil didapatkan!"),
+                          ),
+                        );
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Gagal mendapatkan lokasi atau izin ditolak.",
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Tombol Submit Utama
+                provider.recordModel.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.blueAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          if (provider.recordModel.isLoading) return;
+
+                          if (_formKey.currentState!.validate()) {
+                            final success = await context
+                                .read<RecordProvider>()
+                                .submitForm(
+                                  _name.text,
+                                  _latitude.text,
+                                  _longitude.text,
+                                );
+
+                            if (success == 1 && mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Lokasi berhasil ditambahkan!"),
+                                ),
+                              );
+                              // 🟢 3. Cukup Pop saja, otomatis form hancur dan bersih
+                              Navigator.pop(context);
+                            }
+                          }
+                        },
+                        child: const Text(
+                          'Simpan Data Pantau',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
