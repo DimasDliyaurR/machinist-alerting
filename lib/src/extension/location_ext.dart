@@ -1,44 +1,118 @@
 import 'dart:async';
-import 'package:location/location.dart';
+import 'dart:io';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_android/geolocator_android.dart';
+import 'package:flutter/foundation.dart';
 
 mixin LocationExt {
-  final Location _location = Location();
-
   Future<bool> permissionState() async {
-    if (!await _location.serviceEnabled() &&
-        !await _location.requestService()) {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await Geolocator.openLocationSettings();
+      if (!serviceEnabled) {
+        return false;
+      }
+    }
+
+    LocationPermission permissionGranted = await Geolocator.checkPermission();
+
+    if (permissionGranted == LocationPermission.denied) {
+      permissionGranted = await Geolocator.requestPermission();
+      if (permissionGranted == LocationPermission.denied) {
+        return false;
+      }
+    }
+
+    if (permissionGranted == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
       return false;
     }
 
-    if (await _location.hasPermission() == PermissionStatus.denied &&
-        await _location.requestPermission() != PermissionStatus.granted) {
-      return false;
+    if (Platform.isAndroid) {
+      bool isIgnoringBattery =
+          await FlutterForegroundTask.isIgnoringBatteryOptimizations;
+      if (!isIgnoringBattery) {
+        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+      }
+
+      bool canScheduleAlarms =
+          await FlutterForegroundTask.canScheduleExactAlarms;
+      if (!canScheduleAlarms) {
+        await FlutterForegroundTask.openAlarmsAndRemindersSettings();
+      }
     }
 
     return true;
   }
 
-  Future<LocationData?> getCurrentLocation() async {
-    await _location.changeSettings(accuracy: LocationAccuracy.high);
-    bool checkPermission = await permissionState();
-    if (!checkPermission) {
+  Future<Position?> getCurrentLocation() async {
+    bool hasPermission = await permissionState();
+
+    if (!hasPermission) {
+      print("Akses lokasi dibatalkan karena izin ditolak oleh pengguna.");
       return null;
     }
-    return await _location.getLocation();
-  }
 
-  Future<StreamSubscription<LocationData>?> locationTracker(
-    void Function(LocationData currentLocation) wrapper,
-  ) async {
-    bool checkPermission = await permissionState();
-    if (!checkPermission) return null;
-
-    await _location.changeSettings(
+    final LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      interval: 1000,
-      distanceFilter: 0,
     );
 
-    return _location.onLocationChanged.listen(wrapper);
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
+      );
+    } catch (e) {
+      print("Terjadi kesalahan saat mengambil posisi: $e");
+      return null;
+    }
+  }
+
+  Future<StreamSubscription<Position>?> locationTracker(
+    void Function(Position? currentLocation) wrapper, {
+    bool runInBackground = false, // Tambahkan ini
+  }) async {
+    print("Location Tracker 1 🔥🔥");
+
+    // Jangan cek permission lagi jika jalan di background, karena
+    // pasti sudah dicek di UI sebelum service dinyalakan.
+    if (!runInBackground) {
+      bool checkPermission = await permissionState();
+      print("Location Tracker 2 🔥🔥");
+      if (!checkPermission) return null;
+    }
+
+    print("Location Tracker 3 🔥🔥");
+    LocationSettings locationSettings;
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      locationSettings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5, // Ubah sesuai kebutuhan (misal 5 meter)
+        // 1. Paksa minta data setiap x detik (misal: 2 detik)
+        intervalDuration: const Duration(seconds: 2),
+
+        // 2. (Opsional tapi sering membantu) Paksa pakai GPS hardware langsung
+        // alih-alih algoritma Google Play Services yang suka menghemat baterai
+        forceLocationManager: true,
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        pauseLocationUpdatesAutomatically: false, // Penting untuk iOS
+      );
+    } else {
+      locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      );
+    }
+    print("Location Tracker 4 🔥🔥");
+
+    return Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen(wrapper);
   }
 }

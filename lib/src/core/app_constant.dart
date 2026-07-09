@@ -19,8 +19,46 @@ class KeyUtil {
     return null;
   }
 
-  static Color? getColor(int scale) {
-    StatusPosition? status = getPosition(scale);
+  static String? positionToText(StatusPosition? status) {
+    if (status == null) {
+      return null;
+    }
+
+    switch (status) {
+      case StatusPosition.near:
+        return "near";
+      case StatusPosition.medium:
+        return "medium";
+      case StatusPosition.far:
+        return "far";
+    }
+  }
+
+  static StatusPosition? textToPosition(String? text) {
+    if (text == null) {
+      return null;
+    }
+
+    switch (text) {
+      case "near":
+        return StatusPosition.near;
+      case "medium":
+        return StatusPosition.medium;
+      case "far":
+        return StatusPosition.far;
+    }
+
+    return null;
+  }
+
+  static Color? getColor<T>(T scale) {
+    StatusPosition? status;
+
+    if (scale is int) {
+      status = getPosition(scale);
+    } else if (scale is StatusPosition) {
+      status = scale;
+    }
     switch (status) {
       case StatusPosition.near:
         return Colors.red;

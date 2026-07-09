@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:location/location.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
+import 'package:masinis_helper/src/extension/foreground_alert.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
-import 'package:masinis_helper/src/helper/harvesine_formula.dart';
 import 'package:masinis_helper/src/repository/record_repository.dart';
 
 class AlertProvider extends ChangeNotifier with LocationExt {
@@ -16,76 +17,98 @@ class AlertProvider extends ChangeNotifier with LocationExt {
   String? nameStation;
   String? accuracyGps;
 
-  StreamSubscription<LocationData>? _locationSubscription;
+  StreamSubscription<Position>? _locationSubscription;
 
-  AlertProvider(this._recordRepository);
+  AlertProvider(this._recordRepository) {
+    _prepareForeground();
+    _onInit();
+    FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
+  }
+
+  Future<void> _onInit() async {
+    isListening =
+        await FlutterForegroundTask.isRunningService is ServiceRequestSuccess;
+    notifyListeners();
+  }
+
+  void _onReceiveTaskData(Object data) async {
+    if (data is Map<String, dynamic>) {
+      if (data["listen_status"] != null) {
+        if (data["listen_status"] == "STATUS:STOPING") {
+          stopListen();
+        }
+      } else {
+        currentDistance = data["currentDistance"];
+
+        nameStation = data["nama"];
+        accuracyGps = data["accuracyGps"];
+        color = KeyUtil.getColor<StatusPosition?>(
+          KeyUtil.textToPosition(data["distance"]),
+        )!;
+      }
+
+      notifyListeners();
+    }
+  }
+
+  void _startForeground() async {
+    final notifPerm = await FlutterForegroundTask.checkNotificationPermission();
+    if (notifPerm != NotificationPermission.granted) {
+      await FlutterForegroundTask.requestNotificationPermission();
+    }
+
+    if (await FlutterForegroundTask.isRunningService == false) {
+      final result = await FlutterForegroundTask.startService(
+        notificationTitle: 'Machinis Alert Mulai',
+        notificationText: 'Sedang memindai stasiun di sekitar Anda...',
+        notificationButtons: [
+          const NotificationButton(id: 'btn_stop', text: "Berhenti"),
+        ],
+        callback: startCallback,
+      );
+
+      if (result is ServiceRequestFailure) {
+        debugPrint("Gagal : ${result.error}");
+      }
+    }
+  }
+
+  void _prepareForeground() {
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'channel_machinis_alert_v2',
+        channelName: 'Notifikasi Machinis Alert',
+        channelDescription: 'Mengaktifkan Notifikasi Machinis Alert',
+        channelImportance: NotificationChannelImportance.HIGH,
+        priority: NotificationPriority.HIGH,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(
+        showNotification: true,
+        playSound: false,
+      ),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.repeat(2000),
+        autoRunOnBoot: false,
+        allowWakeLock: true,
+      ),
+    );
+  }
 
   void startListen() async {
     if (isListening) return;
 
     isListening = true;
+    _startForeground();
     notifyListeners();
-
-    List<Map<String, dynamic>> data = await _recordRepository.getRecord(50);
-
-    _locationSubscription = await locationTracker((
-      LocationData? currentLocation,
-    ) {
-      if (currentLocation == null ||
-          currentLocation.latitude == null ||
-          currentLocation.longitude == null) {
-        return;
-      }
-
-      print("Accuration 🔥: ${currentLocation.accuracy}");
-
-      double closestDistance = double.infinity;
-      Map<String, dynamic>? candidate;
-
-      for (var row in data) {
-        double lat = double.parse(row["latitude"].toString());
-        double lon = double.parse(row["longitude"].toString());
-
-        double distance = haversineFormula(
-          distanceLat: lat,
-          distanceLong: lon,
-          currentLat: currentLocation.latitude!,
-          currentLon: currentLocation.longitude!,
-        );
-
-        print("=" * 50);
-        print(
-          "latitude ${currentLocation.latitude} => longitude ${currentLocation.longitude}",
-        );
-        print("distance $distance => closestDistance $closestDistance");
-        print(distance <= closestDistance);
-        if (distance <= closestDistance) {
-          print("distance => $distance");
-          closestDistance = distance;
-          candidate = row;
-        }
-      }
-
-      print("Closest Distance 🔥: $closestDistance");
-      if (closestDistance <= radius) {
-        accuracyGps = currentLocation.accuracy.toString();
-        currentDistance = closestDistance;
-        nameStation = candidate?["nama"];
-        double scale = (closestDistance / radius) * 100;
-        color = KeyUtil.getColor(scale.toInt())!;
-      } else {
-        currentDistance = closestDistance;
-        color = Colors.grey;
-      }
-
-      print("=" * 50);
-      notifyListeners();
-    });
   }
 
-  @override
-  void dispose() {
-    _locationSubscription?.cancel();
-    super.dispose();
+  void stopListen() async {
+    if (isListening) {
+      FlutterForegroundTask.stopService();
+      _locationSubscription?.cancel();
+      isListening = false;
+      color = Colors.grey;
+      notifyListeners();
+    }
   }
 }

@@ -17,9 +17,6 @@ double haversineFormula({
   required double currentLat,
   required double currentLon,
 }) {
-  print(
-    "haversineFormula : distanceLong $distanceLong, distanceLat $distanceLat, currentLat $currentLat, currentLon $currentLon",
-  );
   int R = 6371;
 
   double delLat = convertToRadiant(distanceLat - currentLat);
@@ -34,9 +31,7 @@ double haversineFormula({
 
   a = a.clamp(0, 0.1);
 
-  print("c = 2 * ${math.asin(math.sqrt(a))}, a = $a");
   double c = 2 * math.asin(math.sqrt(a));
 
-  print("Result haversineFormula : ${convertKmToM(R * c)} : $R * $c");
   return convertKmToM(R * c);
 }

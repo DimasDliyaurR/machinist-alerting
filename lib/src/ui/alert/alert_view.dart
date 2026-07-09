@@ -79,7 +79,9 @@ class _AlertUIState extends State<_AlertUI> {
               height: 50,
               child: ElevatedButton(
                 onPressed: provider.isListening
-                    ? null
+                    ? () {
+                        context.read<AlertProvider>().stopListen();
+                      }
                     : () {
                         context.read<AlertProvider>().startListen();
                       },
