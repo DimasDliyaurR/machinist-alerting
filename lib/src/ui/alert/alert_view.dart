@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:masinis_helper/src/core/app_db.dart';
-import 'package:masinis_helper/src/repository/record_repository.dart';
 import 'alert_provider.dart'; // Sesuaikan import Anda
 
 class AlertView extends StatelessWidget {
@@ -10,11 +8,7 @@ class AlertView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (context) => AlertProvider(RecordRepository(AppDb())),
-        ),
-      ],
+      providers: [ChangeNotifierProvider(create: (context) => AlertProvider())],
       child: const _AlertUI(),
     );
   }

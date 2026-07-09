@@ -6,10 +6,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
 import 'package:masinis_helper/src/extension/foreground_alert.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
-import 'package:masinis_helper/src/repository/record_repository.dart';
 
 class AlertProvider extends ChangeNotifier with LocationExt {
-  final RecordRepository _recordRepository;
   bool isListening = false;
   int radius = 10;
   Color color = Colors.grey;
@@ -19,7 +17,7 @@ class AlertProvider extends ChangeNotifier with LocationExt {
 
   StreamSubscription<Position>? _locationSubscription;
 
-  AlertProvider(this._recordRepository) {
+  AlertProvider() {
     _prepareForeground();
     _onInit();
     FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
@@ -31,7 +29,6 @@ class AlertProvider extends ChangeNotifier with LocationExt {
   }
 
   void _onReceiveTaskData(Object data) async {
-    print(data);
     if (data is Map<String, dynamic>) {
       if (data["listen_status"] != null) {
         if (data["listen_status"] == "STATUS:STOPING") {

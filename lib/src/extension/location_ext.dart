@@ -50,7 +50,7 @@ mixin LocationExt {
     bool hasPermission = await permissionState();
 
     if (!hasPermission) {
-      print("Akses lokasi dibatalkan karena izin ditolak oleh pengguna.");
+      debugPrint("Akses lokasi dibatalkan karena izin ditolak oleh pengguna.");
       return null;
     }
 
@@ -63,7 +63,7 @@ mixin LocationExt {
         locationSettings: locationSettings,
       );
     } catch (e) {
-      print("Terjadi kesalahan saat mengambil posisi: $e");
+      debugPrint("Terjadi kesalahan saat mengambil posisi: $e");
       return null;
     }
   }
@@ -72,17 +72,13 @@ mixin LocationExt {
     void Function(Position? currentLocation) wrapper, {
     bool runInBackground = false, // Tambahkan ini
   }) async {
-    print("Location Tracker 1 🔥🔥");
-
     // Jangan cek permission lagi jika jalan di background, karena
     // pasti sudah dicek di UI sebelum service dinyalakan.
     if (!runInBackground) {
       bool checkPermission = await permissionState();
-      print("Location Tracker 2 🔥🔥");
       if (!checkPermission) return null;
     }
 
-    print("Location Tracker 3 🔥🔥");
     LocationSettings locationSettings;
 
     if (defaultTargetPlatform == TargetPlatform.android) {
@@ -109,7 +105,6 @@ mixin LocationExt {
         distanceFilter: 5,
       );
     }
-    print("Location Tracker 4 🔥🔥");
 
     return Geolocator.getPositionStream(
       locationSettings: locationSettings,
