@@ -26,12 +26,12 @@ class AlertProvider extends ChangeNotifier with LocationExt {
   }
 
   Future<void> _onInit() async {
-    isListening =
-        await FlutterForegroundTask.isRunningService is ServiceRequestSuccess;
+    isListening = await FlutterForegroundTask.isRunningService;
     notifyListeners();
   }
 
   void _onReceiveTaskData(Object data) async {
+    print(data);
     if (data is Map<String, dynamic>) {
       if (data["listen_status"] != null) {
         if (data["listen_status"] == "STATUS:STOPING") {
@@ -110,5 +110,11 @@ class AlertProvider extends ChangeNotifier with LocationExt {
       color = Colors.grey;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    FlutterForegroundTask.stopService();
+    super.dispose();
   }
 }

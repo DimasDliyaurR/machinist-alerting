@@ -49,7 +49,6 @@ class ForegroundAlert extends TaskHandler with LocationExt {
       Map<String, dynamic>? candidate;
 
       for (var row in data) {
-        print(row);
         double lat = double.parse(row["latitude"].toString());
         double lon = double.parse(row["longitude"].toString());
 
@@ -122,14 +121,14 @@ class ForegroundAlert extends TaskHandler with LocationExt {
 
   @override
   void onNotificationButtonPressed(String id) async {
-    if (id == 'btn_play') {
+    if (id == 'btn_stop') {
       _isStop = false;
 
       FlutterForegroundTask.updateService(
         notificationTitle: 'Machinis Alert',
         notificationText: 'Sedang memindai rambu...',
         notificationButtons: [
-          const NotificationButton(id: 'btn_pause', text: 'Berhenti'),
+          const NotificationButton(id: 'btn_stop', text: 'Berhenti'),
         ],
       );
 
