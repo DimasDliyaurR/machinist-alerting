@@ -5,25 +5,22 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
-import 'package:masinis_helper/src/core/app_db.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
+import 'package:masinis_helper/src/helper/foreground_helper.dart';
 import 'package:masinis_helper/src/helper/harvesine_formula.dart';
-import 'package:masinis_helper/src/repository/record_repository.dart';
 
 @pragma('vm:entry-point')
 void startCallback() {
-  FlutterForegroundTask.setTaskHandler(
-    ForegroundAlert(RecordRepository(AppDb())),
-  );
+  FlutterForegroundTask.setTaskHandler(ForegroundAlert());
 }
 
 class ForegroundAlert extends TaskHandler with LocationExt {
-  final RecordRepository _recordRepository;
   int radius = 10;
-
+  int? index;
+  List<Map<String, dynamic>>? data;
   bool _isStop = false;
   bool _isPlayingAlarm = false;
-  ForegroundAlert(this._recordRepository);
+  ForegroundAlert();
   StreamSubscription<Position>? _locationSubscription;
 
   late AudioPlayer player;
@@ -31,8 +28,6 @@ class ForegroundAlert extends TaskHandler with LocationExt {
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     player = AudioPlayer();
-
-    List<Map<String, dynamic>> data = await _recordRepository.getRecord(50);
 
     _locationSubscription = await locationTracker((
       Position? currentLocation,
@@ -48,7 +43,14 @@ class ForegroundAlert extends TaskHandler with LocationExt {
       double closestDistance = double.infinity;
       Map<String, dynamic>? candidate;
 
-      for (var row in data) {
+      data = await getDataForeground<List<Map<String, dynamic>>>(
+        key: KeyUtil.routeTrain,
+      );
+
+      index = await getDataForeground<int>(key: KeyUtil.indexTrain);
+
+      if (data != null && index != null) {
+        Map<String, dynamic> row = data![index!];
         double lat = double.parse(row["latitude"].toString());
         double lon = double.parse(row["longitude"].toString());
 

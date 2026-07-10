@@ -6,20 +6,35 @@ import 'package:geolocator/geolocator.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
 import 'package:masinis_helper/src/extension/foreground_alert.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
+import 'package:masinis_helper/src/helper/foreground_helper.dart';
+import 'package:masinis_helper/src/repository/record_repository.dart';
 
 class AlertProvider extends ChangeNotifier with LocationExt {
   bool isListening = false;
   int radius = 10;
+  int indexRoute = 0;
   Color color = Colors.grey;
   double currentDistance = 0.0;
   String? nameStation;
   String? accuracyGps;
+  bool isReadyToGo = false;
+
+  List<Map<String, dynamic>> allStations = [];
+
+  final List<Map<String, dynamic>> selectedStations = [];
+
+  List<Map<String, dynamic>>? routeTrain;
+
+  StatusPosition? currentStatus;
+
+  RecordRepository recordRepository;
 
   StreamSubscription<Position>? _locationSubscription;
 
-  AlertProvider() {
+  AlertProvider(this.recordRepository) {
     _prepareForeground();
     _onInit();
+    loadStations();
     FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
   }
 
@@ -27,6 +42,46 @@ class AlertProvider extends ChangeNotifier with LocationExt {
     isListening = await FlutterForegroundTask.isRunningService;
     notifyListeners();
   }
+
+  Future<void> loadStations() async {
+    final data = await recordRepository.getRecord(50);
+    allStations = data;
+    notifyListeners();
+  }
+
+  bool _isSameStation(Map<String, dynamic> a, Map<String, dynamic> b) {
+    return a['nama'] == b['nama'] &&
+        a['latitude'] == b['latitude'] &&
+        a['longitude'] == b['longitude'];
+  }
+
+  bool isSelected(Map<String, dynamic> station) {
+    return selectedStations.any((e) => _isSameStation(e, station));
+  }
+
+  void toggleStation(Map<String, dynamic> station) {
+    if (isSelected(station)) {
+      selectedStations.removeWhere((e) => _isSameStation(e, station));
+    } else {
+      selectedStations.add(station);
+    }
+    notifyListeners();
+  }
+
+  /// Validasi: harus pilih lebih dari 1 stasiun
+  String? get validationError {
+    if (selectedStations.length < 2) {
+      return "Pilih lebih dari 1 stasiun untuk memulai";
+    }
+    return null;
+  }
+
+  bool get canStart => selectedStations.length > 1;
+
+  bool get isNear => currentStatus == StatusPosition.near;
+
+  bool get isLastStation =>
+      routeTrain != null && indexRoute >= (routeTrain!.length - 1);
 
   void _onReceiveTaskData(Object data) async {
     if (data is Map<String, dynamic>) {
@@ -36,22 +91,38 @@ class AlertProvider extends ChangeNotifier with LocationExt {
         }
       } else {
         currentDistance = data["currentDistance"];
-
         nameStation = data["nama"];
         accuracyGps = data["accuracyGps"];
-        color = KeyUtil.getColor<StatusPosition?>(
-          KeyUtil.textToPosition(data["distance"]),
-        )!;
+        currentStatus = KeyUtil.textToPosition(data["distance"]);
+        color = KeyUtil.getColor<StatusPosition?>(currentStatus)!;
       }
 
       notifyListeners();
     }
   }
 
+  void nextRoute() async {
+    if (routeTrain == null) return;
+    indexRoute++;
+    await saveDataForeground(key: KeyUtil.indexTrain, value: indexRoute);
+    stopListen();
+    _startForeground();
+    _onInit();
+  }
+
   void _startForeground() async {
     final notifPerm = await FlutterForegroundTask.checkNotificationPermission();
     if (notifPerm != NotificationPermission.granted) {
       await FlutterForegroundTask.requestNotificationPermission();
+    }
+
+    if (routeTrain != null) {
+      await saveDataForeground(
+        key: KeyUtil.routeTrain,
+        value: routeTrain as List<Map<String, dynamic>>,
+      );
+
+      await saveDataForeground(key: KeyUtil.indexTrain, value: indexRoute);
     }
 
     if (await FlutterForegroundTask.isRunningService == false) {
@@ -91,12 +162,17 @@ class AlertProvider extends ChangeNotifier with LocationExt {
     );
   }
 
-  void startListen() async {
-    if (isListening) return;
+  bool startListen() {
+    if (isListening) return true;
+    if (!canStart) return false;
+
+    routeTrain = List<Map<String, dynamic>>.from(selectedStations);
+    currentStatus = null;
 
     isListening = true;
     _startForeground();
     notifyListeners();
+    return true;
   }
 
   void stopListen() async {
@@ -105,6 +181,7 @@ class AlertProvider extends ChangeNotifier with LocationExt {
       _locationSubscription?.cancel();
       isListening = false;
       color = Colors.grey;
+      currentStatus = null;
       notifyListeners();
     }
   }
@@ -112,6 +189,7 @@ class AlertProvider extends ChangeNotifier with LocationExt {
   @override
   void dispose() {
     FlutterForegroundTask.stopService();
+    indexRoute = 0;
     super.dispose();
   }
 }

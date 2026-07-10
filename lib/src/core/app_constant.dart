@@ -8,6 +8,9 @@ class KeyUtil {
   static const String record = "record";
   static const String alert = "alert";
 
+  static const String routeTrain = "route_train";
+  static const String indexTrain = "index_train";
+
   static StatusPosition? getPosition(int percentage) {
     if (percentage <= 30) {
       return StatusPosition.near;
