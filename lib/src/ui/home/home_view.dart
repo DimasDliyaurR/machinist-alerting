@@ -1,8 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
 import 'package:masinis_helper/src/core/app_db.dart';
 import 'package:masinis_helper/src/repository/record_repository.dart';
 import 'package:masinis_helper/src/ui/home/home_provider.dart';
+import 'package:masinis_helper/src/ui/widget/permission_model.dart';
 import 'package:provider/provider.dart';
 
 class HomeView extends StatelessWidget {
@@ -16,13 +22,125 @@ class HomeView extends StatelessWidget {
           create: (context) => HomeProvider(RecordRepository(AppDb())),
         ),
       ],
-      child: _HomeUI(),
+      child: const _HomeUI(),
     );
   }
 }
 
-class _HomeUI extends StatelessWidget {
+class _HomeUI extends StatefulWidget {
   const _HomeUI();
+
+  @override
+  State<_HomeUI> createState() => _HomeUIState();
+}
+
+class _HomeUIState extends State<_HomeUI> {
+  StreamSubscription<ServiceStatus>? _serviceStatusStream;
+  bool _isWarningDialogOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _strictCheckPermission();
+    });
+
+    _listeningGpsStatus();
+  }
+
+  void _killApp() {
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else {
+      exit(0);
+    }
+  }
+
+  Future<void> _strictCheckPermission() async {
+    final provider = context.read<HomeProvider>();
+    await provider.checkPermission();
+
+    if (!provider.statusPermission && mounted) {
+      showPermissionModal(
+        context,
+        onGrant: () async {
+          await provider.actionPermission();
+        },
+        onDeny: () {
+          _killApp();
+        },
+      );
+    }
+  }
+
+  void _listeningGpsStatus() {
+    _serviceStatusStream = Geolocator.getServiceStatusStream().listen((
+      ServiceStatus status,
+    ) {
+      if (status == ServiceStatus.disabled) {
+        _tampilkanPeringatanGpsMati();
+      } else if (status == ServiceStatus.enabled) {
+        if (_isWarningDialogOpen && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          _isWarningDialogOpen = false;
+        }
+      }
+    });
+  }
+
+  void _tampilkanPeringatanGpsMati() {
+    if (_isWarningDialogOpen) return;
+    _isWarningDialogOpen = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.gps_off, color: Colors.red, size: 30),
+                SizedBox(width: 10),
+                Text("GPS Dimatikan!"),
+              ],
+            ),
+            content: const Text(
+              "Aplikasi Radar Masinis tidak dapat beroperasi tanpa GPS fisik yang menyala. "
+              "Mohon nyalakan kembali Lokasi Anda, atau aplikasi akan ditutup otomatis.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => _killApp(),
+                child: const Text(
+                  "Tutup Aplikasi",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  await Geolocator.openLocationSettings();
+                },
+                child: const Text("Buka Pengaturan"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _serviceStatusStream?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +156,8 @@ class _HomeUI extends StatelessWidget {
         elevation: 0,
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // Ratakan elemen ke kiri
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- 1. BAGIAN MENU UTAMA (Disejajarkan ke samping / Row) ---
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -58,20 +175,28 @@ class _HomeUI extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 16), // Jarak antar tombol
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildActionCard(
                     title: "Radar Aktif",
                     icon: Icons.radar,
-                    color: Colors.green,
-                    onTap: () => Navigator.pushNamed(context, KeyUtil.alert),
+                    // Tombol abu-abu jika GPS/Izin bermasalah
+                    color: provider.statusPermission
+                        ? Colors.green
+                        : Colors.grey,
+                    onTap: () {
+                      if (provider.statusPermission) {
+                        Navigator.pushNamed(context, KeyUtil.alert);
+                      } else {
+                        _strictCheckPermission();
+                      }
+                    },
                   ),
                 ),
               ],
             ),
           ),
 
-          // --- 2. JUDUL SEGMEN RIWAYAT ---
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Text(
@@ -80,7 +205,6 @@ class _HomeUI extends StatelessWidget {
             ),
           ),
 
-          // --- 3. LIST VIEW MODERN ---
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -95,9 +219,6 @@ class _HomeUI extends StatelessWidget {
                 itemCount: provider.record.length,
                 itemBuilder: (context, index) {
                   final data = provider.record[index];
-
-                  // Menggunakan Card bawaan Flutter agar ada bayangan (elevation)
-                  // Menggunakan Card bawaan Flutter agar ada bayangan (elevation)
                   return Card(
                     elevation: 2,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -120,7 +241,6 @@ class _HomeUI extends StatelessWidget {
                         data["nama"].toString(),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      // 🟢 PERBAIKAN DI SINI: EdgeInsets.only dan penempatan kurung
                       subtitle: Padding(
                         padding: const EdgeInsets.only(top: 4.0),
                         child: Text(
@@ -142,14 +262,12 @@ class _HomeUI extends StatelessWidget {
     );
   }
 
-  // --- WIDGET REUSABLE: Kartu Menu ---
   Widget _buildActionCard({
     required String title,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
-    // Material membungkus InkWell agar efek klik (ripple) muncul sempurna
     return Material(
       color: color,
       borderRadius: BorderRadius.circular(16),

@@ -15,17 +15,14 @@ Future<T?> getDataForeground<T>({required String key}) async {
 
     String? rawJson = await FlutterForegroundTask.getData<String>(key: key);
 
-    print("Get Raw Json ${T.toString()} $key : $rawJson 🪗🪗");
     if (rawJson != null) {
       var decoded = jsonDecode(rawJson);
       if (decoded is List) {
         return List<Map<String, dynamic>>.from(decoded) as T;
       }
-      print("Get Decoded Json ${key} : $decoded 🪗🪗");
       return decoded as T;
     }
 
-    print("Noo way null 🪗🪗🪗");
     return null;
   } catch (e, stacktrace) {
     debugPrint('Exception : $stacktrace');

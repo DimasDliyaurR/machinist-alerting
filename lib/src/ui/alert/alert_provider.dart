@@ -6,11 +6,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
 import 'package:masinis_helper/src/extension/foreground_alert.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
+import 'package:masinis_helper/src/extension/permission_ext.dart';
 import 'package:masinis_helper/src/helper/foreground_helper.dart';
 import 'package:masinis_helper/src/repository/record_repository.dart';
 
-class AlertProvider extends ChangeNotifier with LocationExt {
+class AlertProvider extends ChangeNotifier with LocationExt, PermissionExt {
   bool isListening = false;
+  bool isFinish = true;
   int radius = 10;
   int indexRoute = 0;
   Color color = Colors.grey;
@@ -40,6 +42,16 @@ class AlertProvider extends ChangeNotifier with LocationExt {
 
   Future<void> _onInit() async {
     isListening = await FlutterForegroundTask.isRunningService;
+    isFinish = !isListening;
+    if (!isFinish) {
+      List<Map<String, dynamic>>? stations =
+          await getDataForeground<List<Map<String, dynamic>>>(
+            key: KeyUtil.routeTrain,
+          );
+      if (stations != null) {
+        routeTrain = stations;
+      }
+    }
     notifyListeners();
   }
 
@@ -68,7 +80,6 @@ class AlertProvider extends ChangeNotifier with LocationExt {
     notifyListeners();
   }
 
-  /// Validasi: harus pilih lebih dari 1 stasiun
   String? get validationError {
     if (selectedStations.length < 2) {
       return "Pilih lebih dari 1 stasiun untuk memulai";
@@ -103,6 +114,8 @@ class AlertProvider extends ChangeNotifier with LocationExt {
 
   void nextRoute() async {
     if (routeTrain == null) return;
+    if (isLastStation) isFinish = true;
+
     indexRoute++;
     await saveDataForeground(key: KeyUtil.indexTrain, value: indexRoute);
     stopListen();

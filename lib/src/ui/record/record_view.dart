@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:masinis_helper/src/core/app_db.dart';
+import 'package:masinis_helper/src/dto/record_dto.dart';
 import 'package:masinis_helper/src/repository/record_repository.dart';
 import 'package:masinis_helper/src/ui/record/record_provider.dart';
 import 'package:provider/provider.dart';
@@ -60,27 +61,19 @@ class _RecordFormUIState extends State<_RecordFormUI> {
           centerTitle: true,
           elevation: 0,
         ),
-        // 🟢 1. KUNCI UTAMA: Agar tidak nabrak keyboard saat mengetik
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(
-            24.0,
-          ), // Padding merata di seluruh layar
+          padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch, // Ratakan tombol memanjang
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // --- BAGIAN INPUT NAMA ---
                 TextFormField(
                   controller: _name,
                   decoration: InputDecoration(
                     labelText: 'Nama Stasiun / Lokasi',
-                    prefixIcon: const Icon(
-                      Icons.train,
-                    ), // Tambahkan Ikon agar cantik
+                    prefixIcon: const Icon(Icons.train),
                     border: OutlineInputBorder(
-                      // Kotak input modern
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -88,9 +81,7 @@ class _RecordFormUIState extends State<_RecordFormUI> {
                       value!.isEmpty ? 'Nama wajib diisi' : null,
                 ),
                 const SizedBox(height: 16), // 🟢 2. Jarak vertikal antar input
-                // --- BAGIAN INPUT KOORDINAT ---
                 Row(
-                  // Sejajarkan Latitude dan Longitude secara horizontal agar hemat tempat
                   children: [
                     Expanded(
                       child: TextFormField(
@@ -98,7 +89,7 @@ class _RecordFormUIState extends State<_RecordFormUI> {
                         keyboardType: const TextInputType.numberWithOptions(
                           signed: true,
                           decimal: true,
-                        ), // Keyboard khusus angka
+                        ),
                         decoration: InputDecoration(
                           labelText: 'Latitude',
                           border: OutlineInputBorder(
@@ -130,9 +121,6 @@ class _RecordFormUIState extends State<_RecordFormUI> {
 
                 const SizedBox(height: 24),
 
-                // --- BAGIAN TOMBOL AKSI ---
-
-                // Tombol GPS
                 OutlinedButton.icon(
                   icon: const Icon(Icons.gps_fixed),
                   label: const Text("Gunakan Lokasi Saat Ini (GPS)"),
@@ -193,18 +181,19 @@ class _RecordFormUIState extends State<_RecordFormUI> {
                             final success = await context
                                 .read<RecordProvider>()
                                 .submitForm(
-                                  _name.text,
-                                  _latitude.text,
-                                  _longitude.text,
+                                  record: RecordDto(
+                                    nama: _name.text,
+                                    latitude: _latitude.text,
+                                    longitude: _longitude.text,
+                                  ),
                                 );
 
-                            if (success == 1 && mounted) {
+                            if (success != null && success > 0 && mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text("Lokasi berhasil ditambahkan!"),
                                 ),
                               );
-                              // 🟢 3. Cukup Pop saja, otomatis form hancur dan bersih
                               Navigator.pop(context);
                             }
                           }

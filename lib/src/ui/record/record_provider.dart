@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masinis_helper/src/dto/record_dto.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
 import 'package:masinis_helper/src/repository/record_repository.dart';
 
@@ -20,19 +21,11 @@ class RecordProvider extends ChangeNotifier with LocationExt {
   List<Map<String, dynamic>> _record = [];
   List<Map<String, dynamic>> get record => _record;
 
-  Future<int?> submitForm(
-    String name,
-    String latitude,
-    String longitude,
-  ) async {
+  Future<int?> submitForm({required RecordDto record}) async {
     recordModel.isLoading = true;
     recordModel.errorMessage = "";
     notifyListeners();
-    final result = await _recordRepository.insertRecord(
-      nama: name,
-      latitude: latitude,
-      longitude: longitude,
-    );
+    final result = await _recordRepository.insertRecord(record: record);
     recordModel.isLoading = false;
     if (result > 0) {
       await getData();

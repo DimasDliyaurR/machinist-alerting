@@ -50,7 +50,19 @@ class StationSelectView extends StatelessWidget {
                     value: checked,
                     activeColor: Colors.blueAccent,
                     onChanged: (_) {
-                      context.read<AlertProvider>().toggleStation(station);
+                      if (provider.isFinish) {
+                        context.read<AlertProvider>().toggleStation(station);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "Tidak bisa memilih rute, Radar sedang aktif!",
+                            ),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                        return;
+                      }
                     },
                     secondary: checked
                         ? CircleAvatar(
@@ -98,20 +110,22 @@ class StationSelectView extends StatelessWidget {
             height: 50,
             child: ElevatedButton(
               onPressed: () {
-                final error = provider.validationError;
-                if (error != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(error),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                  return;
-                }
-
                 final alertProvider = context.read<AlertProvider>();
-                final started = alertProvider.startListen();
-                if (!started) return;
+                if (provider.isFinish) {
+                  final error = provider.validationError;
+                  if (error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(error),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final started = alertProvider.startListen();
+                  if (!started) return;
+                }
 
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -123,16 +137,18 @@ class StationSelectView extends StatelessWidget {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: provider.canStart
-                    ? Colors.blueAccent
-                    : Colors.grey,
+                backgroundColor: provider.isFinish
+                    ? (provider.canStart ? Colors.blueAccent : Colors.grey)
+                    : Colors.blueAccent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: Text(
-                "Mulai Radar (${provider.selectedStations.length} Stasiun)",
+                provider.isFinish
+                    ? "Mulai Radar (${provider.selectedStations.length} Stasiun)"
+                    : "Radar masih Aktif",
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

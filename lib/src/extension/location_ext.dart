@@ -1,15 +1,14 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geolocator_android/geolocator_android.dart';
 import 'package:flutter/foundation.dart';
 
 mixin LocationExt {
-  Future<bool> permissionState() async {
+  Future<bool> permissionStateLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      serviceEnabled = await Geolocator.openLocationSettings();
+      await Geolocator.openLocationSettings();
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         return false;
       }
@@ -29,25 +28,11 @@ mixin LocationExt {
       return false;
     }
 
-    if (Platform.isAndroid) {
-      bool isIgnoringBattery =
-          await FlutterForegroundTask.isIgnoringBatteryOptimizations;
-      if (!isIgnoringBattery) {
-        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
-      }
-
-      bool canScheduleAlarms =
-          await FlutterForegroundTask.canScheduleExactAlarms;
-      if (!canScheduleAlarms) {
-        await FlutterForegroundTask.openAlarmsAndRemindersSettings();
-      }
-    }
-
     return true;
   }
 
   Future<Position?> getCurrentLocation() async {
-    bool hasPermission = await permissionState();
+    bool hasPermission = await permissionStateLocation();
 
     if (!hasPermission) {
       debugPrint("Akses lokasi dibatalkan karena izin ditolak oleh pengguna.");
@@ -70,12 +55,10 @@ mixin LocationExt {
 
   Future<StreamSubscription<Position>?> locationTracker(
     void Function(Position? currentLocation) wrapper, {
-    bool runInBackground = false, // Tambahkan ini
+    bool runInBackground = false,
   }) async {
-    // Jangan cek permission lagi jika jalan di background, karena
-    // pasti sudah dicek di UI sebelum service dinyalakan.
     if (!runInBackground) {
-      bool checkPermission = await permissionState();
+      bool checkPermission = await permissionStateLocation();
       if (!checkPermission) return null;
     }
 
@@ -84,12 +67,9 @@ mixin LocationExt {
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 5, // Ubah sesuai kebutuhan (misal 5 meter)
-        // 1. Paksa minta data setiap x detik (misal: 2 detik)
+        distanceFilter: 5,
         intervalDuration: const Duration(seconds: 2),
 
-        // 2. (Opsional tapi sering membantu) Paksa pakai GPS hardware langsung
-        // alih-alih algoritma Google Play Services yang suka menghemat baterai
         forceLocationManager: true,
       );
     } else if (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -97,7 +77,7 @@ mixin LocationExt {
       locationSettings = AppleSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
-        pauseLocationUpdatesAutomatically: false, // Penting untuk iOS
+        pauseLocationUpdatesAutomatically: false,
       );
     } else {
       locationSettings = const LocationSettings(
