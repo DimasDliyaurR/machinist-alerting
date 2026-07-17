@@ -6,7 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:masinis_helper/src/core/app_constant.dart';
 import 'package:masinis_helper/src/core/app_db.dart';
-import 'package:masinis_helper/src/repository/record_repository.dart';
+import 'package:masinis_helper/src/dto/route_dto.dart';
+import 'package:masinis_helper/src/repositories/route_repository.dart';
 import 'package:masinis_helper/src/ui/home/home_provider.dart';
 import 'package:masinis_helper/src/ui/widget/permission_model.dart';
 import 'package:provider/provider.dart';
@@ -19,7 +20,7 @@ class HomeView extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (context) => HomeProvider(RecordRepository(AppDb())),
+          create: (context) => HomeProvider(RouteRepository(AppDb())),
         ),
       ],
       child: const _HomeUI(),
@@ -79,7 +80,7 @@ class _HomeUIState extends State<_HomeUI> {
       ServiceStatus status,
     ) {
       if (status == ServiceStatus.disabled) {
-        _tampilkanPeringatanGpsMati();
+        _showWarningGps();
       } else if (status == ServiceStatus.enabled) {
         if (_isWarningDialogOpen && mounted) {
           Navigator.of(context, rootNavigator: true).pop();
@@ -89,7 +90,7 @@ class _HomeUIState extends State<_HomeUI> {
     });
   }
 
-  void _tampilkanPeringatanGpsMati() {
+  void _showWarningGps() {
     if (_isWarningDialogOpen) return;
     _isWarningDialogOpen = true;
 
@@ -168,7 +169,7 @@ class _HomeUIState extends State<_HomeUI> {
                     icon: Icons.add_location_alt,
                     color: Colors.blueAccent,
                     onTap: () async {
-                      await Navigator.pushNamed(context, KeyUtil.record);
+                      await Navigator.pushNamed(context, KeyUtil.signal);
                       if (context.mounted) {
                         context.read<HomeProvider>().getData();
                       }
@@ -218,7 +219,7 @@ class _HomeUIState extends State<_HomeUI> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: provider.record.length,
                 itemBuilder: (context, index) {
-                  final data = provider.record[index];
+                  final RouteDto data = provider.record[index];
                   return Card(
                     elevation: 2,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -230,7 +231,7 @@ class _HomeUIState extends State<_HomeUI> {
                       leading: CircleAvatar(
                         backgroundColor: Colors.blue.shade50,
                         child: Text(
-                          data["id"].toString(),
+                          data.id.toString(),
                           style: const TextStyle(
                             color: Colors.blueAccent,
                             fontWeight: FontWeight.bold,
@@ -238,14 +239,12 @@ class _HomeUIState extends State<_HomeUI> {
                         ),
                       ),
                       title: Text(
-                        data["nama"].toString(),
+                        data.nama.toString(),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Padding(
                         padding: const EdgeInsets.only(top: 4.0),
-                        child: Text(
-                          "Lat: ${data['latitude']}\nLong: ${data['longitude']}",
-                        ),
+                        child: Text(data.deksripsi.toString()),
                       ),
                       trailing: const Icon(
                         Icons.chevron_right,

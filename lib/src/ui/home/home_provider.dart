@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:masinis_helper/src/dto/route_dto.dart';
 import 'package:masinis_helper/src/extension/permission_ext.dart';
-import 'package:masinis_helper/src/repository/record_repository.dart';
+import 'package:masinis_helper/src/repositories/route_repository.dart';
 
 class HomeProvider extends ChangeNotifier with PermissionExt {
-  final RecordRepository _recordRepository;
+  final RouteRepository _routeRepository;
   bool statusPermission = false;
 
-  HomeProvider(this._recordRepository) {
+  HomeProvider(this._routeRepository) {
     getData();
   }
 
@@ -20,11 +21,11 @@ class HomeProvider extends ChangeNotifier with PermissionExt {
     notifyListeners();
   }
 
-  List<Map<String, dynamic>> _record = [];
-  List<Map<String, dynamic>> get record => _record;
+  List<RouteDto> _record = [];
+  List<RouteDto> get record => _record;
 
   Future<void> getData() async {
-    _record = await _recordRepository.getRecord(50);
+    _record = await _routeRepository.getAll(50) ?? [];
     notifyListeners();
   }
 }

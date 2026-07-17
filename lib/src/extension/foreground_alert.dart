@@ -75,7 +75,7 @@ class ForegroundAlert extends TaskHandler with LocationExt {
           "currentDistance": closestDistance,
           "accuracyGps": currentLocation.accuracy.toString(),
           "nama": candidate?["nama"],
-          "distance": KeyUtil.positionToText(
+          "distance": KeyUtil.enumToText<StatusPosition>(
             KeyUtil.getPosition(scale.toInt()),
           ),
         });
@@ -83,7 +83,7 @@ class ForegroundAlert extends TaskHandler with LocationExt {
         FlutterForegroundTask.updateService(
           notificationTitle: 'Machinis Alert',
           notificationText:
-              '${candidate == null ? "-" : candidate["nama"]} | ${KeyUtil.positionToText(KeyUtil.getPosition(scale.toInt()))}',
+              '${candidate == null ? "-" : candidate["nama"]} | ${KeyUtil.enumToText<StatusPosition>(KeyUtil.getPosition(scale.toInt()))}',
         );
 
         if (position == StatusPosition.near) {
@@ -112,7 +112,7 @@ class ForegroundAlert extends TaskHandler with LocationExt {
           "currentDistance": closestDistance,
           "accuracyGps": currentLocation.accuracy.toString(),
           "nama": candidate == null ? "" : candidate["nama"],
-          "distance": KeyUtil.positionToText(StatusPosition.far),
+          "distance": KeyUtil.enumToText<StatusPosition>(StatusPosition.far),
         });
       }
     }, runInBackground: true);

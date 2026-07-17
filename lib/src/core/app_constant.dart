@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 enum StatusPosition { near, medium, far }
+
+enum TipeSignal { meninggalkan, berangkat }
 
 class KeyUtil {
   static const String home = "home";
   static const String record = "record";
+  static const String signal = "signal";
   static const String alert = "alert";
 
   static const String routeTrain = "route_train";
@@ -22,19 +24,12 @@ class KeyUtil {
     return null;
   }
 
-  static String? positionToText(StatusPosition? status) {
+  static String? enumToText<T extends Enum>(T? status) {
     if (status == null) {
       return null;
     }
 
-    switch (status) {
-      case StatusPosition.near:
-        return "near";
-      case StatusPosition.medium:
-        return "medium";
-      case StatusPosition.far:
-        return "far";
-    }
+    return status.name;
   }
 
   static StatusPosition? textToPosition(String? text) {

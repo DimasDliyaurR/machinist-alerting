@@ -8,7 +8,6 @@ import 'package:masinis_helper/src/extension/foreground_alert.dart';
 import 'package:masinis_helper/src/extension/location_ext.dart';
 import 'package:masinis_helper/src/extension/permission_ext.dart';
 import 'package:masinis_helper/src/helper/foreground_helper.dart';
-import 'package:masinis_helper/src/repository/record_repository.dart';
 
 class AlertProvider extends ChangeNotifier with LocationExt, PermissionExt {
   bool isListening = false;
